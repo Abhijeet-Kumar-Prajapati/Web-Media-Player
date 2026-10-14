@@ -1,0 +1,801 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Universal Media Player</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .player-container {
+            background: #1a1a1a;
+            border-radius: 15px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8);
+            max-width: 900px;
+            width: 100%;
+            overflow: hidden;
+        }
+
+        .media-display {
+            position: relative;
+            width: 100%;
+            background: #000;
+            aspect-ratio: 16/9;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        video, audio {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        .brightness-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0);
+            pointer-events: none;
+            transition: background-color 0.3s;
+            z-index: 1;
+        }
+
+        .audio-visualization {
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+            gap: 3px;
+            padding: 20px;
+            height: 100%;
+            background: linear-gradient(180deg, #1a1a1a 0%, #000 100%);
+        }
+
+        .bar {
+            width: 4px;
+            background: linear-gradient(180deg, #00d4ff, #0099ff);
+            border-radius: 2px;
+            animation: pulse 0.6s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { height: 20px; }
+            50% { height: 60px; }
+        }
+
+        .controls-container {
+            background: #0d0d0d;
+            padding: 20px;
+            border-top: 1px solid #333;
+        }
+
+        .file-input-wrapper {
+            margin-bottom: 15px;
+        }
+
+        .file-input-wrapper label {
+            display: block;
+            color: #fff;
+            margin-bottom: 8px;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .file-input-wrapper input[type="file"] {
+            display: block;
+            width: 100%;
+            padding: 10px;
+            background: #1a1a1a;
+            border: 2px solid #333;
+            border-radius: 5px;
+            color: #fff;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .file-input-wrapper input[type="file"]::file-selector-button {
+            background: linear-gradient(135deg, #00d4ff, #0099ff);
+            color: #fff;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 600;
+            margin-right: 10px;
+        }
+
+        .file-input-wrapper input[type="file"]::file-selector-button:hover {
+            background: linear-gradient(135deg, #00e5ff, #00aaff);
+        }
+
+        .file-name {
+            color: #00d4ff;
+            font-size: 12px;
+            margin-top: 5px;
+            word-break: break-all;
+        }
+
+        .progress-container {
+            margin-bottom: 15px;
+        }
+
+        .time-display {
+            display: flex;
+            justify-content: space-between;
+            color: #aaa;
+            font-size: 12px;
+            margin-bottom: 8px;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background: #333;
+            border-radius: 3px;
+            cursor: pointer;
+            overflow: hidden;
+            transition: height 0.2s;
+        }
+
+        .progress-bar:hover {
+            height: 8px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #00d4ff, #0099ff);
+            width: 0%;
+            transition: width 0.1s;
+            border-radius: 3px;
+        }
+
+        .controls-row {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+
+        .control-button {
+            background: linear-gradient(135deg, #00d4ff, #0099ff);
+            color: #fff;
+            border: none;
+            padding: 10px 18px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 14px;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .control-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 212, 255, 0.4);
+        }
+
+        .control-button:active {
+            transform: translateY(0);
+        }
+
+        .control-button.secondary {
+            background: #333;
+            color: #00d4ff;
+        }
+
+        .control-button.secondary:hover {
+            background: #444;
+            box-shadow: 0 5px 15px rgba(0, 212, 255, 0.2);
+        }
+
+        .sliders-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .slider-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .slider-label {
+            color: #fff;
+            font-size: 13px;
+            font-weight: 600;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .slider-value {
+            color: #00d4ff;
+            font-weight: 700;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            height: 6px;
+            border-radius: 3px;
+            background: #333;
+            outline: none;
+            -webkit-appearance: none;
+            appearance: none;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #00d4ff, #0099ff);
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(0, 212, 255, 0.5);
+        }
+
+        input[type="range"]::-moz-range-thumb {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #00d4ff, #0099ff);
+            cursor: pointer;
+            border: none;
+            box-shadow: 0 0 10px rgba(0, 212, 255, 0.5);
+        }
+
+        .quality-controls {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+            gap: 10px;
+        }
+
+        .quality-btn {
+            background: #333;
+            color: #aaa;
+            border: 2px solid transparent;
+            padding: 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .quality-btn.active {
+            background: linear-gradient(135deg, #00d4ff, #0099ff);
+            color: #fff;
+            border-color: #00d4ff;
+        }
+
+        .quality-btn:hover {
+            border-color: #00d4ff;
+            color: #00d4ff;
+        }
+
+        .playlist-section {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #333;
+        }
+
+        .playlist-title {
+            color: #fff;
+            font-weight: 600;
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
+
+        .playlist-items {
+            max-height: 150px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .playlist-item {
+            background: #1a1a1a;
+            padding: 10px;
+            border-radius: 4px;
+            color: #aaa;
+            cursor: pointer;
+            font-size: 12px;
+            border-left: 3px solid transparent;
+            transition: all 0.3s;
+            word-break: break-all;
+        }
+
+        .playlist-item:hover {
+            background: #252525;
+            color: #00d4ff;
+            border-left-color: #00d4ff;
+        }
+
+        .playlist-item.active {
+            background: #003d5c;
+            color: #00d4ff;
+            border-left-color: #00d4ff;
+        }
+
+        .playlist-item .remove-btn {
+            float: right;
+            background: #ff4444;
+            color: #fff;
+            border: none;
+            padding: 2px 6px;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 10px;
+        }
+
+        .info-display {
+            background: #1a1a1a;
+            padding: 10px;
+            border-radius: 4px;
+            color: #aaa;
+            font-size: 12px;
+            margin-bottom: 15px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .info-item {
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .info-label {
+            color: #00d4ff;
+            font-weight: 600;
+        }
+
+        @media (max-width: 600px) {
+            .sliders-container {
+                grid-template-columns: 1fr;
+            }
+
+            .controls-row {
+                flex-direction: column;
+            }
+
+            .control-button {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+
+        .scrollbar::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .scrollbar::-webkit-scrollbar-track {
+            background: #1a1a1a;
+            border-radius: 10px;
+        }
+
+        .scrollbar::-webkit-scrollbar-thumb {
+            background: #00d4ff;
+            border-radius: 10px;
+        }
+
+        .scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #0099ff;
+        }
+
+        .playlist-items {
+            scrollbar-color: #00d4ff #1a1a1a;
+            scrollbar-width: thin;
+        }
+    </style>
+</head>
+<body>
+    <div class="player-container">
+        <!-- Media Display -->
+        <div class="media-display" id="mediaDisplay">
+            <video id="videoPlayer" controls style="display: none;"></video>
+            <audio id="audioPlayer" controls style="display: none;"></audio>
+            <div class="audio-visualization" id="audioVisualization" style="display: none;">
+                <div class="bar"></div>
+                <div class="bar" style="animation-delay: 0.1s;"></div>
+                <div class="bar" style="animation-delay: 0.2s;"></div>
+                <div class="bar" style="animation-delay: 0.3s;"></div>
+                <div class="bar" style="animation-delay: 0.4s;"></div>
+                <div class="bar" style="animation-delay: 0.5s;"></div>
+                <div class="bar" style="animation-delay: 0.6s;"></div>
+                <div class="bar" style="animation-delay: 0.7s;"></div>
+                <div class="bar" style="animation-delay: 0.8s;"></div>
+            </div>
+            <div class="brightness-overlay" id="brightnessOverlay"></div>
+        </div>
+
+        <!-- Controls -->
+        <div class="controls-container">
+            <!-- File Input -->
+            <div class="file-input-wrapper">
+                <label for="fileInput">Select Media File (Video/Audio)</label>
+                <input type="file" id="fileInput" accept="video/*,audio/*" multiple>
+                <div class="file-name" id="fileName"></div>
+            </div>
+
+            <!-- Info Display -->
+            <div class="info-display" id="infoDisplay" style="display: none;">
+                <div class="info-item">
+                    <span class="info-label">Type:</span>
+                    <span id="mediaType">Unknown</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Format:</span>
+                    <span id="mediaFormat">Unknown</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Resolution:</span>
+                    <span id="mediaResolution">-</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Bitrate:</span>
+                    <span id="mediaBitrate">-</span>
+                </div>
+            </div>
+
+            <!-- Progress Bar -->
+            <div class="progress-container">
+                <div class="time-display">
+                    <span id="currentTime">0:00</span>
+                    <span id="duration">0:00</span>
+                </div>
+                <div class="progress-bar" id="progressBar">
+                    <div class="progress-fill" id="progressFill"></div>
+                </div>
+            </div>
+
+            <!-- Main Controls -->
+            <div class="controls-row">
+                <button class="control-button" id="playBtn" onclick="togglePlay()">
+                    <span id="playBtnText">▶ Play</span>
+                </button>
+                <button class="control-button secondary" id="stopBtn" onclick="stopMedia()">⏹ Stop</button>
+                <button class="control-button secondary" id="prevBtn" onclick="previousTrack()">⏮ Previous</button>
+                <button class="control-button secondary" id="nextBtn" onclick="nextTrack()">⏭ Next</button>
+                <button class="control-button secondary" id="fullscreenBtn" onclick="toggleFullscreen()">⛶ Fullscreen</button>
+            </div>
+
+            <!-- Sliders -->
+            <div class="sliders-container">
+                <div class="slider-group">
+                    <div class="slider-label">
+                        <span>🔊 Volume</span>
+                        <span class="slider-value" id="volumeValue">100%</span>
+                    </div>
+                    <input type="range" id="volumeSlider" min="0" max="100" value="100" oninput="setVolume(this.value)">
+                </div>
+
+                <div class="slider-group">
+                    <div class="slider-label">
+                        <span>☀️ Brightness</span>
+                        <span class="slider-value" id="brightnessValue">100%</span>
+                    </div>
+                    <input type="range" id="brightnessSlider" min="0" max="200" value="100" oninput="setBrightness(this.value)">
+                </div>
+
+                <div class="slider-group">
+                    <div class="slider-label">
+                        <span>⏱ Playback Speed</span>
+                        <span class="slider-value" id="speedValue">1x</span>
+                    </div>
+                    <input type="range" id="speedSlider" min="0.25" max="2" step="0.25" value="1" oninput="setSpeed(this.value)">
+                </div>
+
+                <div class="slider-group">
+                    <div class="slider-label">
+                        <span>🔈 Bass Boost</span>
+                        <span class="slider-value" id="bassValue">0%</span>
+                    </div>
+                    <input type="range" id="bassSlider" min="0" max="100" value="0" oninput="setBass(this.value)">
+                </div>
+            </div>
+
+            <!-- Playlist Section -->
+            <div class="playlist-section">
+                <div class="playlist-title">📋 Playlist</div>
+                <div class="playlist-items scrollbar" id="playlistItems"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const videoPlayer = document.getElementById('videoPlayer');
+        const audioPlayer = document.getElementById('audioPlayer');
+        const mediaDisplay = document.getElementById('mediaDisplay');
+        const audioVisualization = document.getElementById('audioVisualization');
+        const brightnessOverlay = document.getElementById('brightnessOverlay');
+        const fileInput = document.getElementById('fileInput');
+        const fileName = document.getElementById('fileName');
+        const playBtn = document.getElementById('playBtn');
+        const playBtnText = document.getElementById('playBtnText');
+        const progressBar = document.getElementById('progressBar');
+        const progressFill = document.getElementById('progressFill');
+        const currentTimeSpan = document.getElementById('currentTime');
+        const durationSpan = document.getElementById('duration');
+        const volumeSlider = document.getElementById('volumeSlider');
+        const volumeValue = document.getElementById('volumeValue');
+        const brightnessSlider = document.getElementById('brightnessSlider');
+        const brightnessValue = document.getElementById('brightnessValue');
+        const playlistItemsDiv = document.getElementById('playlistItems');
+        const infoDisplay = document.getElementById('infoDisplay');
+
+        let currentPlayer = null;
+        let playlist = [];
+        let currentTrackIndex = 0;
+        let audioContext = null;
+
+        // Initialize Audio Context for Bass Boost
+        function initAudioContext() {
+            if (!audioContext) {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            }
+        }
+
+        // Handle file selection
+        fileInput.addEventListener('change', function (e) {
+            const files = Array.from(e.target.files);
+            if (files.length > 0) {
+                playlist = files.map(f => ({
+                    file: f,
+                    name: f.name,
+                    type: f.type
+                }));
+                currentTrackIndex = 0;
+                updatePlaylist();
+                loadTrack(0);
+            }
+        });
+
+        // Load and play track
+        function loadTrack(index) {
+            if (index < 0 || index >= playlist.length) return;
+            
+            currentTrackIndex = index;
+            const track = playlist[index];
+            const fileURL = URL.createObjectURL(track.file);
+            const mediaType = track.type.split('/')[0];
+
+            // Reset current player
+            if (currentPlayer) {
+                currentPlayer.pause();
+                currentPlayer.src = '';
+            }
+
+            // Hide both players
+            videoPlayer.style.display = 'none';
+            audioPlayer.style.display = 'none';
+            audioVisualization.style.display = 'none';
+
+            // Load appropriate player
+            if (mediaType === 'video') {
+                currentPlayer = videoPlayer;
+                videoPlayer.src = fileURL;
+                videoPlayer.style.display = 'block';
+                document.getElementById('mediaType').textContent = 'Video';
+            } else if (mediaType === 'audio') {
+                currentPlayer = audioPlayer;
+                audioPlayer.src = fileURL;
+                audioPlayer.style.display = 'block';
+                audioVisualization.style.display = 'flex';
+                document.getElementById('mediaType').textContent = 'Audio';
+            }
+
+            // Update UI
+            fileName.textContent = track.name;
+            document.getElementById('mediaFormat').textContent = track.type || 'Unknown';
+            infoDisplay.style.display = 'grid';
+            updatePlaylist();
+
+            // Get video dimensions if video
+            if (mediaType === 'video') {
+                videoPlayer.addEventListener('loadedmetadata', function () {
+                    document.getElementById('mediaResolution').textContent = 
+                        `${videoPlayer.videoWidth}x${videoPlayer.videoHeight}`;
+                }, { once: true });
+            }
+        }
+
+        // Update playlist UI
+        function updatePlaylist() {
+            playlistItemsDiv.innerHTML = '';
+            playlist.forEach((item, index) => {
+                const div = document.createElement('div');
+                div.className = `playlist-item ${index === currentTrackIndex ? 'active' : ''}`;
+                div.innerHTML = `
+                    <span onclick="loadTrack(${index})" style="flex: 1;">${item.name}</span>
+                    <button class="remove-btn" onclick="removeFromPlaylist(${index})">✕</button>
+                `;
+                playlistItemsDiv.appendChild(div);
+            });
+        }
+
+        // Remove from playlist
+        function removeFromPlaylist(index) {
+            playlist.splice(index, 1);
+            if (currentTrackIndex >= playlist.length && currentTrackIndex > 0) {
+                currentTrackIndex--;
+            }
+            updatePlaylist();
+            if (playlist.length > 0) {
+                loadTrack(currentTrackIndex);
+            } else {
+                currentPlayer = null;
+                videoPlayer.style.display = 'none';
+                audioPlayer.style.display = 'none';
+                audioVisualization.style.display = 'none';
+                fileName.textContent = '';
+                infoDisplay.style.display = 'none';
+            }
+        }
+
+        // Play/Pause
+        function togglePlay() {
+            if (!currentPlayer) return;
+
+            if (currentPlayer.paused) {
+                currentPlayer.play();
+                playBtnText.textContent = '⏸ Pause';
+            } else {
+                currentPlayer.pause();
+                playBtnText.textContent = '▶ Play';
+            }
+        }
+
+        // Stop
+        function stopMedia() {
+            if (!currentPlayer) return;
+            currentPlayer.pause();
+            currentPlayer.currentTime = 0;
+            playBtnText.textContent = '▶ Play';
+        }
+
+        // Next/Previous Track
+        function nextTrack() {
+            if (currentTrackIndex < playlist.length - 1) {
+                loadTrack(currentTrackIndex + 1);
+                currentPlayer?.play();
+            }
+        }
+
+        function previousTrack() {
+            if (currentTrackIndex > 0) {
+                loadTrack(currentTrackIndex - 1);
+                currentPlayer?.play();
+            }
+        }
+
+        // Volume Control
+        function setVolume(value) {
+            if (!currentPlayer) return;
+            currentPlayer.volume = value / 100;
+            volumeValue.textContent = value + '%';
+        }
+
+        // Brightness Control
+        function setBrightness(value) {
+            const brightness = value / 100;
+            brightnessValue.textContent = value + '%';
+            
+            if (brightness < 1) {
+                brightnessOverlay.style.backgroundColor = `rgba(0, 0, 0, ${1 - brightness})`;
+            } else {
+                const lightness = brightness - 1;
+                brightnessOverlay.style.backgroundColor = `rgba(255, 255, 255, ${lightness * 0.3})`;
+            }
+        }
+
+        // Speed Control
+        function setSpeed(value) {
+            if (!currentPlayer) return;
+            currentPlayer.playbackRate = parseFloat(value);
+            document.getElementById('speedValue').textContent = value + 'x';
+        }
+
+        // Bass Boost (visual effect)
+        function setBass(value) {
+            document.getElementById('bassValue').textContent = value + '%';
+        }
+
+        // Progress Bar
+        function updateProgress() {
+            if (!currentPlayer || !currentPlayer.duration) return;
+            const percent = (currentPlayer.currentTime / currentPlayer.duration) * 100;
+            progressFill.style.width = percent + '%';
+            currentTimeSpan.textContent = formatTime(currentPlayer.currentTime);
+        }
+
+        progressBar.addEventListener('click', function (e) {
+            if (!currentPlayer || !currentPlayer.duration) return;
+            const rect = progressBar.getBoundingClientRect();
+            const percent = (e.clientX - rect.left) / rect.width;
+            currentPlayer.currentTime = percent * currentPlayer.duration;
+        });
+
+        // Time formatting
+        function formatTime(seconds) {
+            if (isNaN(seconds)) return '0:00';
+            const mins = Math.floor(seconds / 60);
+            const secs = Math.floor(seconds % 60);
+            return `${mins}:${secs.toString().padStart(2, '0')}`;
+        }
+
+        // Fullscreen
+        function toggleFullscreen() {
+            if (videoPlayer.style.display === 'block') {
+                if (videoPlayer.requestFullscreen) {
+                    videoPlayer.requestFullscreen();
+                }
+            }
+        }
+
+        // Event listeners
+        if (videoPlayer) {
+            videoPlayer.addEventListener('timeupdate', updateProgress);
+            videoPlayer.addEventListener('loadedmetadata', function () {
+                durationSpan.textContent = formatTime(videoPlayer.duration);
+            });
+            videoPlayer.addEventListener('ended', nextTrack);
+        }
+
+        if (audioPlayer) {
+            audioPlayer.addEventListener('timeupdate', updateProgress);
+            audioPlayer.addEventListener('loadedmetadata', function () {
+                durationSpan.textContent = formatTime(audioPlayer.duration);
+            });
+            audioPlayer.addEventListener('ended', nextTrack);
+        }
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', function (e) {
+            switch(e.code) {
+                case 'Space':
+                    e.preventDefault();
+                    togglePlay();
+                    break;
+                case 'ArrowRight':
+                    if (currentPlayer) currentPlayer.currentTime += 5;
+                    break;
+                case 'ArrowLeft':
+                    if (currentPlayer) currentPlayer.currentTime -= 5;
+                    break;
+                case 'ArrowUp':
+                    volumeSlider.value = Math.min(100, parseInt(volumeSlider.value) + 10);
+                    setVolume(volumeSlider.value);
+                    break;
+                case 'ArrowDown':
+                    volumeSlider.value = Math.max(0, parseInt(volumeSlider.value) - 10);
+                    setVolume(volumeSlider.value);
+                    break;
+            }
+        });
+    </script>
+</body>
+</html>
